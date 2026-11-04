@@ -1,10 +1,10 @@
-const CACHE_NAME = 'despesas-v1';
+const CACHE_NAME = 'despesas-v2';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './icons/icon-192x192.png',
-  './icons/icon-512x512.png'
+  './icons/icon-192x192.svg',
+  './icons/icon-512x512.svg'
 ];
 
 self.addEventListener('install', e => {
