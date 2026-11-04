@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0d9488">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192x192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap">
+<title>Controle de Despesas</title>
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1a1d23;
+  --fg-dim: #6b7280;
+  --accent: #0d9488;
+  --accent-light: #ccfbf1;
+  --accent-fg: #ffffff;
+  --danger: #ef4444;
+  --danger-light: #fef2f2;
+  --paid-bg: #f0fdf4;
+  --paid-accent: #22c55e;
+  --border: #e5e7eb;
+  --shadow: 0 1px 3px rgba(0,0,0,.06);
+  --radius: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --fg: #e8eaed;
+    --fg-dim: #8b919e;
+    --accent: #2dd4bf;
+    --accent-light: #0d3d38;
+    --accent-fg: #0f1117;
+    --danger: #f87171;
+    --danger-light: #2a1515;
+    --paid-bg: #0d2818;
+    --paid-accent: #4ade80;
+    --border: #2a2d37;
+    --shadow: 0 1px 3px rgba(0,0,0,.3);
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  padding: env(safe-area-inset-top, 0px) max(16px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(16px, env(safe-area-inset-left, 0px));
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.header {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 5;
+  background: var(--bg);
+  padding: 16px 0 12px;
+}
+.header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.month-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+.month-nav button {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s;
+}
+.month-nav button:active { background: var(--border); }
+.month-label {
+  font-size: 1rem;
+  font-weight: 600;
+  flex: 1;
+  text-align: center;
+  text-transform: capitalize;
+}
+
+.income-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow);
+  margin: 14px 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.income-bar .income-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--fg-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.income-bar input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  padding: 0;
+}
+.income-bar input::placeholder { color: var(--fg-dim); opacity: .5; }
+.income-bar .edit-icon { color: var(--fg-dim); flex-shrink: 0; }
+
+.commitment-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--border);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.commitment-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--accent);
+  transition: width .4s ease, background .3s;
+  max-width: 100%;
+}
+.commitment-fill.warn { background: #f59e0b; }
+.commitment-fill.over { background: var(--danger); }
+
+.summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+.summary-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow);
+}
+.summary-card .label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--fg-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+.summary-card .value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.summary-card .value.paid-val { color: var(--paid-accent); }
+.summary-card .value.pending-val { color: var(--danger); }
+.summary-card .value.surplus-val { color: var(--accent); }
+.summary-card .value.deficit-val { color: var(--danger); }
+
+.expense-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 100px;
+}
+.expense-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: background .2s, border-color .2s;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.expense-item.is-paid {
+  background: var(--paid-bg);
+  border-color: var(--paid-accent);
+}
+.check-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .2s;
+}
+.is-paid .check-circle {
+  background: var(--paid-accent);
+  border-color: var(--paid-accent);
+}
+.check-circle svg { opacity: 0; transition: opacity .15s; }
+.is-paid .check-circle svg { opacity: 1; }
+
+.expense-info { flex: 1; min-width: 0; }
+.expense-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.expense-meta {
+  font-size: 0.78rem;
+  color: var(--fg-dim);
+  margin-top: 2px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.installment-badge {
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+}
+.expense-amount {
+  font-weight: 700;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.is-paid .expense-name,
+.is-paid .expense-amount { text-decoration: line-through; color: var(--fg-dim); }
+
+.expense-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.btn-delete {
+  background: none;
+  border: none;
+  color: var(--fg-dim);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .15s, background .15s;
+}
+.btn-delete:active {
+  color: var(--danger);
+  background: var(--danger-light);
+}
+
+.fab {
+  position: fixed;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  right: calc(max(16px, env(safe-area-inset-right, 0px)) + 4px);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: none;
+  font-size: 1.8rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(13,148,136,.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 8;
+  transition: transform .15s;
+}
+.fab:active { transform: scale(.92); }
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 20;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+}
+.modal-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.modal {
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  width: 100%;
+  max-width: 480px;
+  padding: 24px max(16px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  transform: translateY(100%);
+  transition: transform .25s ease-out;
+}
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 18px;
+}
+.form-group { margin-bottom: 14px; }
+.form-group label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--fg-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+.form-group input, .form-group select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 1rem;
+}
+.form-group input:focus, .form-group select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(13,148,136,.15);
+}
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+.toggle-row span { font-size: 0.95rem; font-weight: 500; }
+.toggle {
+  width: 48px;
+  height: 28px;
+  border-radius: 14px;
+  background: var(--border);
+  border: none;
+  cursor: pointer;
+  position: relative;
+  transition: background .2s;
+}
+.toggle.on { background: var(--accent); }
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.toggle.on::after { transform: translateX(20px); }
+
+.btn-submit {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 6px;
+  transition: opacity .15s;
+}
+.btn-submit:active { opacity: .85; }
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--fg-dim);
+}
+.empty-state .icon { font-size: 2.5rem; margin-bottom: 12px; }
+.empty-state p { font-size: 0.95rem; }
+
+.install-banner {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin: 10px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.install-banner button {
+  background: rgba(255,255,255,.2);
+  color: inherit;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.install-banner .dismiss {
+  background: none;
+  padding: 4px;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Despesas</h1>
+  <div class="month-nav">
+    <button id="prevMonth" aria-label="Mês anterior">&#8249;</button>
+    <span class="month-label" id="monthLabel"></span>
+    <button id="nextMonth" aria-label="Próximo mês">&#8250;</button>
+  </div>
+</div>
+
+<div id="installBanner" hidden class="install-banner">
+  <span>Instalar como app</span>
+  <div>
+    <button id="installBtn">Instalar</button>
+    <button class="dismiss" id="dismissInstall" aria-label="Fechar">&times;</button>
+  </div>
+</div>
+
+<div class="income-bar">
+  <span class="income-label">Renda</span>
+  <input type="number" id="incomeInput" placeholder="Informe seu salário" step="0.01" min="0" inputmode="decimal">
+  <svg class="edit-icon" width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M13.1 2.9a1.5 1.5 0 012.1 2.1L6.5 13.7l-3.2.8.8-3.2L13.1 2.9z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</div>
+
+<div class="commitment-track">
+  <div class="commitment-fill" id="commitFill" style="width:0%"></div>
+</div>
+
+<div class="summary">
+  <div class="summary-card">
+    <div class="label">Despesas</div>
+    <div class="value" id="totalValue">R$ 0,00</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">Sobra</div>
+    <div class="value surplus-val" id="balanceValue">R$ 0,00</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">Uso</div>
+    <div class="value" id="commitPercent">0%</div>
+  </div>
+</div>
+
+<div class="summary" style="margin-top:0">
+  <div class="summary-card">
+    <div class="label">Pago</div>
+    <div class="value paid-val" id="paidValue">R$ 0,00</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">Pendente</div>
+    <div class="value pending-val" id="pendingValue">R$ 0,00</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">Pagos</div>
+    <div class="value" id="paidCount">0/0</div>
+  </div>
+</div>
+
+<div class="expense-list" id="expenseList"></div>
+
+<button class="fab" id="addBtn" aria-label="Adicionar despesa">+</button>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2 id="modalTitle">Nova Despesa</h2>
+    <form id="expenseForm">
+      <div class="form-group">
+        <label for="expName">Descrição</label>
+        <input type="text" id="expName" placeholder="Ex: Aluguel, Netflix..." required autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label for="expValue">Valor (R$)</label>
+        <input type="number" id="expValue" placeholder="0,00" step="0.01" min="0" required inputmode="decimal">
+      </div>
+      <div class="form-group">
+        <div class="toggle-row">
+          <span>Parcelado?</span>
+          <button type="button" class="toggle" id="toggleInstallment" aria-label="Parcelado"></button>
+        </div>
+      </div>
+      <div class="form-row" id="installmentFields" hidden>
+        <div class="form-group">
+          <label for="expCurrentInst">Parcela atual</label>
+          <input type="number" id="expCurrentInst" min="1" value="1" inputmode="numeric">
+        </div>
+        <div class="form-group">
+          <label for="expTotalInst">Total de parcelas</label>
+          <input type="number" id="expTotalInst" min="1" value="12" inputmode="numeric">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="expCategory">Categoria</label>
+        <select id="expCategory">
+          <option value="Moradia">Moradia</option>
+          <option value="Transporte">Transporte</option>
+          <option value="Alimentação">Alimentação</option>
+          <option value="Saúde">Saúde</option>
+          <option value="Lazer">Lazer</option>
+          <option value="Educação">Educação</option>
+          <option value="Assinatura">Assinatura</option>
+          <option value="Cartão">Cartão de Crédito</option>
+          <option value="Outro">Outro</option>
+        </select>
+      </div>
+      <button type="submit" class="btn-submit" id="btnSubmit">Adicionar</button>
+    </form>
+  </div>
+</div>
+
+<script>
+// Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+// PWA Install prompt
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBanner').hidden = false;
+});
+document.getElementById('installBtn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('installBanner').hidden = true;
+});
+document.getElementById('dismissInstall').addEventListener('click', () => {
+  document.getElementById('installBanner').hidden = true;
+});
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBanner').hidden = true;
+});
+
+// App logic
+const STORAGE_KEY = 'despesas_v1';
+const INCOME_KEY = 'despesas_income_v1';
+let currentDate = new Date();
+let expenses = [];
+let incomeByMonth = {};
+let editingId = null;
+
+function getMonthKey(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+
+function loadData() {
+  try { const r = localStorage.getItem(STORAGE_KEY); if (r) expenses = JSON.parse(r); } catch(e) { expenses = []; }
+  try { const r = localStorage.getItem(INCOME_KEY); if (r) incomeByMonth = JSON.parse(r); } catch(e) { incomeByMonth = {}; }
+}
+
+function saveData() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses)); } catch(e) {}
+}
+
+function saveIncome() {
+  try { localStorage.setItem(INCOME_KEY, JSON.stringify(incomeByMonth)); } catch(e) {}
+}
+
+function getIncome() {
+  return Number(incomeByMonth[getMonthKey(currentDate)]) || 0;
+}
+
+function loadIncomeInput() {
+  const income = getIncome();
+  document.getElementById('incomeInput').value = income > 0 ? income : '';
+}
+
+function formatCurrency(val) {
+  return 'R$ ' + Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function updateMonthLabel() {
+  document.getElementById('monthLabel').textContent =
+    currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+}
+
+function getMonthExpenses() {
+  return expenses.filter(e => e.month === getMonthKey(currentDate));
+}
+
+function renderSummary(items) {
+  const total = items.reduce((s,e) => s + Number(e.value), 0);
+  const paid = items.filter(e => e.paid).reduce((s,e) => s + Number(e.value), 0);
+  const pending = total - paid;
+  const paidCount = items.filter(e => e.paid).length;
+  const income = getIncome();
+  const balance = income - total;
+  const pct = income > 0 ? Math.min((total / income) * 100, 100) : 0;
+
+  document.getElementById('totalValue').textContent = formatCurrency(total);
+  document.getElementById('paidValue').textContent = formatCurrency(paid);
+  document.getElementById('pendingValue').textContent = formatCurrency(pending);
+  document.getElementById('paidCount').textContent = paidCount + '/' + items.length;
+
+  const balEl = document.getElementById('balanceValue');
+  if (income > 0) {
+    if (balance >= 0) {
+      balEl.className = 'value surplus-val';
+      balEl.textContent = formatCurrency(balance);
+    } else {
+      balEl.className = 'value deficit-val';
+      balEl.textContent = '- ' + formatCurrency(Math.abs(balance));
+    }
+  } else {
+    balEl.textContent = '—';
+    balEl.className = 'value';
+  }
+
+  const pctEl = document.getElementById('commitPercent');
+  if (income > 0) {
+    const realPct = (total / income) * 100;
+    pctEl.textContent = realPct.toFixed(1).replace('.', ',') + '%';
+    pctEl.className = realPct > 100 ? 'value deficit-val' : realPct > 80 ? 'value pending-val' : 'value';
+  } else {
+    pctEl.textContent = '—';
+    pctEl.className = 'value';
+  }
+
+  const fill = document.getElementById('commitFill');
+  fill.style.width = pct + '%';
+  fill.classList.remove('warn', 'over');
+  if (income > 0 && (total / income) > 1) fill.classList.add('over');
+  else if (income > 0 && (total / income) > 0.8) fill.classList.add('warn');
+}
+
+function renderList() {
+  const items = getMonthExpenses();
+  const list = document.getElementById('expenseList');
+  renderSummary(items);
+
+  if (items.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>Nenhuma despesa neste mês.<br>Toque no <strong>+</strong> para adicionar.</p></div>';
+    return;
+  }
+
+  const sorted = [...items].sort((a,b) => {
+    if (a.paid !== b.paid) return a.paid ? 1 : -1;
+    return a.name.localeCompare(b.name, 'pt-BR');
+  });
+
+  list.innerHTML = sorted.map(e => {
+    const inst = e.installment ? '<span class="installment-badge">' + e.currentInst + '/' + e.totalInst + '</span>' : '';
+    return '<div class="expense-item ' + (e.paid ? 'is-paid' : '') + '" data-id="' + e.id + '">' +
+      '<div class="check-circle" onclick="togglePaid(\'' + e.id + '\', event)">' +
+        '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7.5L5.5 10.5L11.5 3.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      '</div>' +
+      '<div class="expense-info" onclick="editExpense(\'' + e.id + '\')">' +
+        '<div class="expense-name">' + e.name + '</div>' +
+        '<div class="expense-meta"><span>' + e.category + '</span>' + inst + '</div>' +
+      '</div>' +
+      '<div class="expense-amount">' + formatCurrency(e.value) + '</div>' +
+      '<div class="expense-actions">' +
+        '<button class="btn-delete" onclick="deleteExpense(\'' + e.id + '\', event)" aria-label="Excluir">' +
+          '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4.5 5.5L5.2 14.5C5.24 15.05 5.7 15.5 6.25 15.5H11.75C12.3 15.5 12.76 15.05 12.8 14.5L13.5 5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M3 5.5H15" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M7 5.5V3.5C7 3 7.4 2.5 8 2.5H10C10.6 2.5 11 3 11 3.5V5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function togglePaid(id, event) {
+  event.stopPropagation();
+  const exp = expenses.find(e => e.id === id);
+  if (exp) { exp.paid = !exp.paid; saveData(); renderList(); }
+}
+
+function deleteExpense(id, event) {
+  event.stopPropagation();
+  const item = document.querySelector('[data-id="' + id + '"]');
+  if (item) {
+    item.style.transform = 'translateX(100%)';
+    item.style.opacity = '0';
+    item.style.transition = 'all .25s ease';
+    setTimeout(() => { expenses = expenses.filter(e => e.id !== id); saveData(); renderList(); }, 250);
+  }
+}
+
+function editExpense(id) {
+  const exp = expenses.find(e => e.id === id);
+  if (!exp) return;
+  editingId = id;
+  document.getElementById('modalTitle').textContent = 'Editar Despesa';
+  document.getElementById('btnSubmit').textContent = 'Salvar';
+  document.getElementById('expName').value = exp.name;
+  document.getElementById('expValue').value = exp.value;
+  document.getElementById('expCategory').value = exp.category;
+  const toggle = document.getElementById('toggleInstallment');
+  const fields = document.getElementById('installmentFields');
+  if (exp.installment) { toggle.classList.add('on'); fields.hidden = false; document.getElementById('expCurrentInst').value = exp.currentInst; document.getElementById('expTotalInst').value = exp.totalInst; }
+  else { toggle.classList.remove('on'); fields.hidden = true; }
+  openModal();
+}
+
+function openModal() { document.getElementById('modal').classList.add('open'); }
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'Nova Despesa';
+  document.getElementById('btnSubmit').textContent = 'Adicionar';
+  document.getElementById('expenseForm').reset();
+  document.getElementById('toggleInstallment').classList.remove('on');
+  document.getElementById('installmentFields').hidden = true;
+}
+
+document.getElementById('addBtn').addEventListener('click', () => {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'Nova Despesa';
+  document.getElementById('btnSubmit').textContent = 'Adicionar';
+  document.getElementById('expenseForm').reset();
+  document.getElementById('toggleInstallment').classList.remove('on');
+  document.getElementById('installmentFields').hidden = true;
+  openModal();
+  setTimeout(() => document.getElementById('expName').focus(), 300);
+});
+
+document.getElementById('modal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeModal(); });
+document.getElementById('toggleInstallment').addEventListener('click', function() { this.classList.toggle('on'); document.getElementById('installmentFields').hidden = !this.classList.contains('on'); });
+
+document.getElementById('expenseForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const name = document.getElementById('expName').value.trim();
+  const value = parseFloat(document.getElementById('expValue').value);
+  const category = document.getElementById('expCategory').value;
+  const isInst = document.getElementById('toggleInstallment').classList.contains('on');
+  const curInst = parseInt(document.getElementById('expCurrentInst').value) || 1;
+  const totInst = parseInt(document.getElementById('expTotalInst').value) || 1;
+  if (!name || isNaN(value) || value <= 0) return;
+
+  if (editingId) {
+    const exp = expenses.find(e => e.id === editingId);
+    if (exp) { exp.name = name; exp.value = value; exp.category = category; exp.installment = isInst; exp.currentInst = curInst; exp.totalInst = totInst; }
+  } else {
+    expenses.push({ id: Date.now().toString(36) + Math.random().toString(36).substr(2,5), month: getMonthKey(currentDate), name, value, category, installment: isInst, currentInst: curInst, totalInst: totInst, paid: false });
+  }
+  saveData(); closeModal(); renderList();
+});
+
+document.getElementById('incomeInput').addEventListener('input', function() {
+  const val = parseFloat(this.value);
+  if (!isNaN(val) && val >= 0) incomeByMonth[getMonthKey(currentDate)] = val;
+  else delete incomeByMonth[getMonthKey(currentDate)];
+  saveIncome(); renderList();
+});
+
+document.getElementById('prevMonth').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); updateMonthLabel(); loadIncomeInput(); renderList(); });
+document.getElementById('nextMonth').addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); updateMonthLabel(); loadIncomeInput(); renderList(); });
+
+loadData(); updateMonthLabel(); loadIncomeInput(); renderList();
+</script>
+
+</body>
+</html>
